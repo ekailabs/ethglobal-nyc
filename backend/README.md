@@ -1,13 +1,15 @@
 # OpenRouter Proxy Backend
 
-A simple backend proxy service that provides access to OpenRouter AI models. This service acts as a middleman between your frontend applications and the OpenRouter API, keeping your API key secure on the server side.
+Backend proxy for OpenRouter AI models with HTTP 402 payment integration. Supports pay-per-use via blockchain micro-transactions using stablecoins.
 
 ## Features
 
-- 🤖 **OpenRouter Integration**: Access to 100+ AI models through OpenRouter
-- 🔒 **API Key Security**: Keep your OpenRouter API key server-side
+- 🤖 **Multi-model**: Access to 100+ AI models through OpenRouter
+- 🔒 **API Key Security**: End-users do not need API keys
+- 💳 **HTTP 402 Payment Required**: Implements payment standards for API access
+- 🔗 **Blockchain Payment Validation**: Validates PYUSD or any token transactions on Base Sepolia
 - 🚀 **Simple Setup**: Minimal configuration required
-- 🌐 **CORS Enabled**: Ready for frontend integration
+- ⚙️ **Configurable Payment**: Toggle payment requirements and validation
 
 ## Quick Start
 
@@ -52,6 +54,13 @@ A simple backend proxy service that provides access to OpenRouter AI models. Thi
 |----------|-------------|---------|
 | `PORT` | Server port | `3001` |
 | `OPENROUTER_API_KEY` | Your OpenRouter API key | **Required** |
+| `ENABLE_PAYMENT_REQUIRED` | Enable HTTP 402 payment requirement | `true` |
+| `ENABLE_TX_VALIDATION` | Enable blockchain transaction validation | `true` |
+| `PAYMENT_RECIPIENT` | Payment recipient address | - |
+| `PAYMENT_AMOUNT` | Required payment amount | `50000` |
+| `PAYMENT_TOKEN_SYMBOL` | Payment token symbol | `PYUSD` |
+| `PAYMENT_TOKEN_ADDRESS` | Payment token contract address | - |
+| `BASE_SEPOLIA_RPC` | Base Sepolia RPC URL | `https://sepolia.base.org` |
 
 ## API Endpoints
 
@@ -70,6 +79,39 @@ GET /v1/models
 POST /v1/chat/completions
 ```
 
+**Without Payment** (when `ENABLE_PAYMENT_REQUIRED=false`):
+```bash
+curl -X POST http://localhost:3001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "anthropic/claude-3.5-sonnet",
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'
+```
+
+**With Payment** (when `ENABLE_PAYMENT_REQUIRED=true`):
+```bash
+curl -X POST http://localhost:3001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tx_hash": "0x777a34705d68431748145b12800f055e694930d554f0b4a8664f9efc3904a969",
+    "model": "anthropic/claude-3.5-sonnet", 
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'
+```
+
+## Payment System
+
+**x402 Standard Implementation** - Modified version without facilitator component.
+
+**Flow**: Request without payment → HTTP 402 response → Pay → Request with `tx_hash` → API access
+
+**Validation**: Direct blockchain verification on Base Sepolia for PYUSD transfers.
+
+**Configuration**:
+- `ENABLE_PAYMENT_REQUIRED=false` - Disable payments entirely
+- `ENABLE_TX_VALIDATION=false` - Accept any tx_hash without validation
+
 ## Development
 
 ### Scripts
@@ -78,58 +120,6 @@ POST /v1/chat/completions
 - `npm run build` - Build TypeScript to JavaScript
 - `npm start` - Start production server
 
-### Project Structure
+## Credits
 
-```
-src/
-├── index.ts           # Main server setup and routes
-├── openrouter-proxy.ts # OpenRouter API proxy logic
-└── models.ts          # Models endpoint handler
-```
-
-## Dependencies
-
-- **Express.js** - Web framework
-- **node-fetch** - HTTP client for OpenRouter API
-- **TypeScript** - Type safety and modern JavaScript features
-- **CORS** - Cross-origin resource sharing
-
-## Deployment
-
-### Vercel
-This service works with Vercel's serverless functions.
-
-### Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY dist/ ./dist/
-EXPOSE 3001
-CMD ["npm", "start"]
-```
-
-## Security Considerations
-
-- ✅ **API Key Security** - OpenRouter key stays server-side
-- ✅ **CORS configured** - Ready for frontend integration
-- ✅ **Environment isolation** - Sensitive data in .env files
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Support
-
-For issues related to:
-- **OpenRouter API**: Check [OpenRouter documentation](https://openrouter.ai/docs)
-- **This service**: Open an issue in this repository
+Modified **[x402 standard](https://github.com/coinbase/x402/)** - removes facilitator component, implements direct blockchain validation. 

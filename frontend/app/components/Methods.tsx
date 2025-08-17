@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useDynamicContext, useIsLoggedIn, useUserWallets, useSendBalance } from "@dynamic-labs/sdk-react-core";
 import { isEthereumWallet } from '@dynamic-labs/ethereum'
-import { parseUnits } from 'viem'
+import { parseEther, parseUnits } from 'viem'
 
 import './Methods.css';
 
@@ -154,53 +154,16 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
 
   async function sendPYUSD() {
     try {
-      console.log('💰 Starting PYUSD send process');
+      console.log('💰 Opening basic send balance modal');
       
-      // Get recipient address from user
-      const recipientAddress = prompt('Enter recipient address:');
-      if (!recipientAddress) {
-        console.log('❌ No recipient address provided');
-        return;
-      }
-
-      // Get amount from user
-      const amountInput = prompt('Enter PYUSD amount to send:');
-      if (!amountInput) {
-        console.log('❌ No amount provided');
-        return;
-      }
-
-      const amount = parseFloat(amountInput);
-      if (isNaN(amount) || amount <= 0) {
-        throw new Error('Invalid amount. Please enter a positive number.');
-      }
-
-      console.log('📤 Sending PYUSD:', { recipientAddress, amount });
-
-      // PYUSD is typically 6 decimals, but using parseUnits to be safe
-      const value = parseUnits(amountInput, 6);
-
-      // Open Dynamic's send balance modal with pre-populated fields
-      const tx = await openSendBalance({
-        recipientAddress,
-        value: value
-      });
-
-      console.log('✅ PYUSD send transaction:', tx);
-
-      const sendData = {
-        transaction: tx,
-        recipientAddress,
-        amount: amountInput,
-        action: 'Send PYUSD',
-        timestamp: new Date().toISOString()
-      };
-
-      setResult(safeStringify(sendData));
-      setError(null);
+      // Use the basic version - just open the modal
+      const tx = await openSendBalance({recipientAddress: '0x0000000000000000000000000000000000000000', value: parseEther('1')});
+      
+      console.log('✅ Send balance modal opened:', tx);
+      
     } catch (err) {
-      console.error('💥 Error sending PYUSD:', err);
-      setError(err instanceof Error ? err.message : 'Failed to send PYUSD');
+      console.error('💥 Error opening send balance modal:', err);
+      setError(err instanceof Error ? err.message : 'Failed to open send balance modal');
     }
   }
 

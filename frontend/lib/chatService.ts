@@ -32,6 +32,15 @@ export interface ChatResponse {
   };
 }
 
+export interface PaymentInfo {
+  payTo: string;
+  maxAmountRequired: string;
+  maxAmountRequiredRaw: string;
+  token: string;
+  network: string;
+  description: string;
+}
+
 export class ChatService {
   private baseURL: string;
 
@@ -42,8 +51,9 @@ export class ChatService {
   async sendChatMessage(
     messages: ChatMessage[],
     model: string = 'openai/gpt-4o-mini',
-    options: Partial<ChatRequest> = {}
-  ): Promise<ChatResponse> {
+    options: Partial<ChatRequest> = {},
+    txHash?: string
+  ): Promise<ChatResponse | { paymentRequired: true; paymentInfo: PaymentInfo }> {
     const requestOptions: RequestInit = {
       method: 'POST',
       headers: {
@@ -57,11 +67,48 @@ export class ChatService {
         temperature: options.temperature || 0.7,
         top_p: options.top_p || 0.9,
         stream: options.stream || false,
+        ...(txHash && { tx_hash: txHash }),
         ...options,
       }),
     };
 
     const response = await fetch(`${this.baseURL}/v1/chat/completions`, requestOptions);
+
+    if (response.status === 402) {
+      // Payment required - parse the payment information
+      const errorData = await response.json();
+      console.log('🚨 Payment Required (402):', errorData);
+      
+      if (errorData.accepts && errorData.accepts.length > 0) {
+        const paymentDetails = errorData.accepts[0];
+        const rawAmount = paymentDetails.maxAmountRequired;
+        
+        // Convert from 6 decimals to human-readable amount
+        const humanReadableAmount = (parseInt(rawAmount) / Math.pow(10, 6)).toFixed(6);
+        
+        console.log('💰 Payment Details:', {
+          payTo: paymentDetails.payTo,
+          maxAmountRequired: humanReadableAmount,
+          maxAmountRequiredRaw: rawAmount,
+          token: paymentDetails.token,
+          network: paymentDetails.network,
+          description: paymentDetails.description,
+        });
+        
+        const paymentInfo: PaymentInfo = {
+          payTo: paymentDetails.payTo,
+          maxAmountRequired: humanReadableAmount,
+          maxAmountRequiredRaw: rawAmount,
+          token: paymentDetails.token,
+          network: paymentDetails.network,
+          description: paymentDetails.description,
+        };
+        
+        return { paymentRequired: true, paymentInfo };
+      }
+      
+      throw new Error('Payment required but payment details not available');
+    }
 
     if (!response.ok) {
       const errorText = await response.text();

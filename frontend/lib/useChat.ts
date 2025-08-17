@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ChatService, ChatMessage as ApiChatMessage } from './chatService';
+import { ChatService, ChatMessage as ApiChatMessage, PaymentInfo, ChatResponse } from './chatService';
 
 export interface Message {
   id: string;
@@ -14,6 +14,8 @@ export interface ChatState {
   error: string | null;
   selectedModel: string;
   availableModels: string[];
+  paymentRequired: boolean;
+  paymentInfo: PaymentInfo | null;
 }
 
 export function useChat() {
@@ -23,6 +25,8 @@ export function useChat() {
     error: null,
     selectedModel: 'openai/gpt-4o-mini',
     availableModels: [],
+    paymentRequired: false,
+    paymentInfo: null,
   });
 
   const [chatService] = useState(() => new ChatService());
@@ -60,6 +64,8 @@ export function useChat() {
       messages: [...prev.messages, userMessage],
       isLoading: true,
       error: null,
+      paymentRequired: false,
+      paymentInfo: null,
     }));
 
     try {
@@ -77,9 +83,22 @@ export function useChat() {
         chatState.selectedModel
       );
 
+      // Check if payment is required
+      if ('paymentRequired' in response && response.paymentRequired) {
+        setChatState(prev => ({
+          ...prev,
+          isLoading: false,
+          paymentRequired: true,
+          paymentInfo: response.paymentInfo,
+        }));
+        return;
+      }
+
+      // Normal AI response - TypeScript now knows this is ChatResponse
+      const chatResponse = response as ChatResponse;
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: response.choices[0]?.message?.content || 'No response received',
+        text: chatResponse.choices[0]?.message?.content || 'No response received',
         isUser: false,
         timestamp: new Date(),
       };
@@ -105,6 +124,8 @@ export function useChat() {
       ...prev,
       messages: [],
       error: null,
+      paymentRequired: false,
+      paymentInfo: null,
     }));
   }, []);
 
@@ -112,6 +133,8 @@ export function useChat() {
     setChatState(prev => ({
       ...prev,
       error: null,
+      paymentRequired: false,
+      paymentInfo: null,
     }));
   }, []);
 
@@ -122,11 +145,60 @@ export function useChat() {
     }));
   }, []);
 
+  const sendPaymentAndGetResponse = useCallback(async (txHash: string) => {
+    if (!chatState.paymentRequired || !chatState.paymentInfo) return;
+
+    setChatState(prev => ({
+      ...prev,
+      isLoading: true,
+      error: null,
+    }));
+
+    try {
+      const apiMessages: ApiChatMessage[] = chatState.messages.map(msg => ({
+        role: msg.isUser ? 'user' as const : 'assistant' as const,
+        content: msg.text,
+      }));
+
+      const response = await chatService.sendChatMessage(
+        apiMessages,
+        chatState.selectedModel,
+        {},
+        txHash
+      );
+
+      const chatResponse = response as ChatResponse;
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: chatResponse.choices[0]?.message?.content || 'No response received',
+        isUser: false,
+        timestamp: new Date(),
+      };
+
+      setChatState(prev => ({
+        ...prev,
+        messages: [...prev.messages, aiMessage],
+        isLoading: false,
+        paymentRequired: false,
+        paymentInfo: null,
+      }));
+
+    } catch (error) {
+      console.error('Failed to get response after payment:', error);
+      setChatState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to get response after payment',
+      }));
+    }
+  }, [chatService, chatState.messages, chatState.selectedModel, chatState.paymentRequired, chatState.paymentInfo]);
+
   return {
     ...chatState,
     sendMessage,
     clearMessages,
     clearError,
     setModel,
+    sendPaymentAndGetResponse,
   };
 }

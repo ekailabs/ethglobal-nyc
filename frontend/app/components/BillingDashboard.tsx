@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useBilling } from '../../lib/useBilling';
+import { useBillingContext } from '../../lib/BillingContext';
 
 interface BillingDashboardProps {
   isOpen: boolean;
@@ -9,13 +9,18 @@ interface BillingDashboardProps {
 }
 
 export default function BillingDashboard({ isOpen, onClose }: BillingDashboardProps) {
-  const { billingData, refreshData } = useBilling();
+  const { billingData, refreshData } = useBillingContext();
 
   useEffect(() => {
     if (isOpen) {
       refreshData();
+      console.log('📊 Dashboard opened, billing data:', billingData);
     }
   }, [isOpen, refreshData]);
+
+  useEffect(() => {
+    console.log('📈 Billing data updated:', billingData);
+  }, [billingData]);
 
   if (!isOpen) return null;
 
@@ -156,9 +161,9 @@ export default function BillingDashboard({ isOpen, onClose }: BillingDashboardPr
                             href={`https://sepolia.etherscan.io/tx/${tx.txHash}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 font-mono text-xs"
+                            className="text-blue-600 hover:text-blue-800 font-mono text-xs hover:underline"
                           >
-                            {tx.txHash.slice(0, 10)}...
+                            {tx.txHash.slice(0, 8)}...{tx.txHash.slice(-6)}
                           </a>
                         ) : (
                           <span className="text-gray-400 text-xs">Pending</span>

@@ -60,6 +60,8 @@ export function useBilling() {
 
   // Add a new transaction
   const addTransaction = useCallback((amount: number, model: string, txHash?: string) => {
+    console.log('💰 Adding transaction to billing:', { amount, model, txHash });
+    
     const transaction: Transaction = {
       id: Date.now().toString(),
       amount,
@@ -68,7 +70,10 @@ export function useBilling() {
       txHash
     };
 
+    console.log('📝 Created transaction object:', transaction);
+
     setBillingData(prev => {
+      console.log('📊 Previous billing data:', prev);
       // Filter transactions from last 24 hours
       const now = new Date();
       const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -103,6 +108,7 @@ export function useBilling() {
         recentTransactions: recent24h.slice(0, 50) // Keep last 50 transactions
       };
       
+      console.log('💾 New billing data calculated:', newData);
       saveBillingData(newData);
       return newData;
     });

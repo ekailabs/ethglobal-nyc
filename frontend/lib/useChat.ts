@@ -28,6 +28,8 @@ export function useChat() {
     paymentRequired: false,
     paymentInfo: null,
   });
+  
+  const [paymentStatus, setPaymentStatus] = useState<string>('');
 
   const [chatService] = useState(() => new ChatService());
 
@@ -48,7 +50,7 @@ export function useChat() {
     loadModels();
   }, [chatService]);
 
-  const sendMessage = useCallback(async (messageText: string) => {
+  const sendMessage = useCallback(async (messageText: string, autoPayCallback?: (paymentInfo: PaymentInfo) => Promise<string>) => {
     if (!messageText.trim()) return;
 
     // Add user message
@@ -85,13 +87,57 @@ export function useChat() {
 
       // Check if payment is required
       if ('paymentRequired' in response && response.paymentRequired) {
-        setChatState(prev => ({
-          ...prev,
-          isLoading: false,
-          paymentRequired: true,
-          paymentInfo: response.paymentInfo,
-        }));
-        return;
+        if (autoPayCallback) {
+          setPaymentStatus('Paying for the alpha... 💸');
+          console.log('💰 Auto-payment triggered');
+          try {
+            const txHash = await autoPayCallback(response.paymentInfo);
+            setPaymentStatus('Payment confirmed, getting response... 🧠');
+            console.log('✅ Auto-payment successful, getting response');
+            
+            // Now get the actual response with payment proof
+            const finalResponse = await chatService.sendChatMessage(
+              apiMessages,
+              chatState.selectedModel,
+              {},
+              txHash
+            );
+
+            const chatResponse = finalResponse as ChatResponse;
+            const aiMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              text: chatResponse.choices[0]?.message?.content || 'No response received',
+              isUser: false,
+              timestamp: new Date(),
+            };
+
+            setChatState(prev => ({
+              ...prev,
+              messages: [...prev.messages, aiMessage],
+              isLoading: false,
+            }));
+            setPaymentStatus('');
+            return;
+          } catch (paymentError) {
+            console.error('Auto-payment failed:', paymentError);
+            setChatState(prev => ({
+              ...prev,
+              isLoading: false,
+              error: `Payment failed: ${paymentError instanceof Error ? paymentError.message : 'Unknown error'}`,
+            }));
+            setPaymentStatus('');
+            return;
+          }
+        } else {
+          // Fallback to showing payment UI
+          setChatState(prev => ({
+            ...prev,
+            isLoading: false,
+            paymentRequired: true,
+            paymentInfo: response.paymentInfo,
+          }));
+          return;
+        }
       }
 
       // Normal AI response - TypeScript now knows this is ChatResponse
@@ -200,5 +246,6 @@ export function useChat() {
     clearError,
     setModel,
     sendPaymentAndGetResponse,
+    paymentStatus,
   };
 }

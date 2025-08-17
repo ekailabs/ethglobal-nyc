@@ -14,9 +14,10 @@ import 'prismjs/components/prism-json';
 import { useChat } from '../../lib/useChat';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { isEthereumWallet } from '@dynamic-labs/ethereum';
-import { parseUnits, erc20Abi } from 'viem';
+import { isZeroDevConnector } from '@dynamic-labs/ethereum-aa';
+import { parseUnits, erc20Abi, parseGwei, encodeFunctionData } from 'viem';
 import BillingDashboard from './BillingDashboard';
-import { useBilling } from '../../lib/useBilling';
+import { useBillingContext } from '../../lib/BillingContext';
 
 interface ChatInterfaceProps {
   isDarkMode: boolean;
@@ -35,12 +36,113 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
     setModel,
     paymentRequired,
     paymentInfo,
-    sendPaymentAndGetResponse
+    sendPaymentAndGetResponse,
+    paymentStatus
   } = useChat();
   const [inputMessage, setInputMessage] = useState('');
   const [showBillingDashboard, setShowBillingDashboard] = useState(false);
   const { primaryWallet } = useDynamicContext();
-  const { addTransaction } = useBilling();
+  const { addTransaction } = useBillingContext();
+
+  const autoPayment = async (paymentInfo: PaymentInfo): Promise<string> => {
+    if (!primaryWallet) throw new Error('No wallet connected');
+    
+    const connector = primaryWallet.connector;
+    
+    // Check if it's a ZeroDev connector
+    if (isZeroDevConnector(connector)) {
+      console.log('💎 Using ZeroDev kernel client');
+      
+      // Wait for network to be ready
+      await connector.getNetwork();
+      
+      // Get kernel client with sponsorship
+      const kernelClient = connector.getAccountAbstractionProvider({
+        withSponsorship: true
+      });
+      
+      // PYUSD contract address on Sepolia
+      const PYUSD_ADDRESS = "0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9" as `0x${string}`;
+      const recipientAddress = paymentInfo.payTo;
+      const amount = parseUnits(paymentInfo.maxAmountRequired, 6);
+      
+      // Encode the transfer call
+      const callData = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [recipientAddress as `0x${string}`, amount]
+      });
+      
+      console.log('🚀 Auto-paying PYUSD via ZeroDev:', { 
+        contract: PYUSD_ADDRESS,
+        to: recipientAddress, 
+        amount: paymentInfo.maxAmountRequired
+      });
+
+      // Send user operation
+      const userOpHash = await kernelClient.sendUserOperation({
+        callData: await kernelClient.account.encodeCalls([{
+          data: callData,
+          to: PYUSD_ADDRESS,
+          value: BigInt(0)
+        }])
+      });
+
+      console.log('📋 User operation hash:', userOpHash);
+      
+      // Wait for user operation receipt
+      const { receipt } = await kernelClient.waitForUserOperationReceipt({
+        hash: userOpHash
+      });
+      
+      console.log('✅ ZeroDev transaction confirmed:', receipt);
+      console.log('🔗 Sepolia scan:', `https://sepolia.etherscan.io/tx/${receipt.transactionHash}`);
+      
+      // Track the transaction
+      addTransaction(parseFloat(paymentInfo.maxAmountRequired), selectedModel, receipt.transactionHash);
+      
+      // Show Sepolia scan link
+      alert(`Payment confirmed! View on Sepolia: https://sepolia.etherscan.io/tx/${receipt.transactionHash}`);
+      
+      return receipt.transactionHash;
+    } else {
+      // Fallback to regular wallet client
+      console.log('🔗 Using regular wallet client');
+      
+      if (!isEthereumWallet(primaryWallet)) {
+        throw new Error('Ethereum wallet required');
+      }
+
+      const walletClient = await primaryWallet.getWalletClient();
+      
+      const PYUSD_ADDRESS = "0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9" as `0x${string}`;
+      const recipientAddress = paymentInfo.payTo;
+      const amount = parseUnits(paymentInfo.maxAmountRequired, 6);
+      
+      const hash = await walletClient.writeContract({
+        address: PYUSD_ADDRESS,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [recipientAddress as `0x${string}`, amount],
+        gas: BigInt(100000),
+        maxFeePerGas: parseGwei('2'),
+        maxPriorityFeePerGas: parseGwei('1')
+      });
+
+      const publicClient = await primaryWallet.getPublicClient();
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      
+      console.log('✅ Regular wallet transaction confirmed:', receipt);
+      console.log('🔗 Sepolia scan:', `https://sepolia.etherscan.io/tx/${hash}`);
+      
+      addTransaction(parseFloat(paymentInfo.maxAmountRequired), selectedModel, hash);
+      
+      // Show Sepolia scan link
+      alert(`Payment confirmed! View on Sepolia: https://sepolia.etherscan.io/tx/${hash}`);
+      
+      return hash;
+    }
+  };
 
   const handlePayNow = async () => {
     if (!paymentInfo || !primaryWallet) return;
@@ -70,21 +172,23 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
         abi: erc20Abi,
         functionName: 'transfer',
         args: [recipientAddress as `0x${string}`, amount],
+        gas: BigInt(100000),
+        maxFeePerGas: parseGwei('2'),
+        maxPriorityFeePerGas: parseGwei('1')
       });
 
       console.log('📋 Transaction hash:', hash);
      
-       // Track the transaction in billing data
-       addTransaction(parseFloat(paymentInfo.maxAmountRequired), selectedModel, hash);
-      
-       // Send transaction hash to backend to get actual LLM response
-       await sendPaymentAndGetResponse(hash);
-     
-       
       // Wait for transaction receipt
       const publicClient = await primaryWallet.getPublicClient();
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      
+
+             // Track the transaction in billing data
+      addTransaction(parseFloat(paymentInfo.maxAmountRequired), selectedModel, hash);
+
+      // Send transaction hash to backend to get actual LLM response
+      await sendPaymentAndGetResponse(hash);
+
       console.log('✅ PYUSD transaction confirmed:', receipt);
       
       
@@ -146,7 +250,7 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
     const messageToSend = inputMessage;
     setInputMessage(''); // Clear input immediately
     
-    await sendMessage(messageToSend);
+    await sendMessage(messageToSend, autoPayment);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -216,74 +320,6 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
         </div>
       </div>
 
-      {/* Payment Required Display */}
-      {paymentRequired && paymentInfo && (
-        <div className="mx-8 mb-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="p-6 rounded-lg border border-orange-200 bg-orange-50 text-orange-800">
-              <div className="flex items-start gap-3">
-                <svg className="w-6 h-6 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-2">Payment Required</h3>
-                  <p className="text-sm mb-3">{paymentInfo.description}</p>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">Pay to:</span>
-                      <code className="px-2 py-1 bg-orange-100 rounded text-xs font-mono">
-                        {paymentInfo.payTo}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">Amount:</span>
-                      <span className="px-2 py-1 bg-orange-100 rounded">
-                        {paymentInfo.maxAmountRequired} {paymentInfo.token}
-                      </span>
-                      <span className="text-xs text-orange-600">
-                        (Raw: {paymentInfo.maxAmountRequiredRaw})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">Network:</span>
-                      <span className="px-2 py-1 bg-orange-100 rounded">
-                        {paymentInfo.network}
-                      </span>
-                    </div>
-                    
-                    {/* Pay Now Button */}
-                    <div className="mt-4 pt-3 border-t border-orange-200">
-                      <button
-                        onClick={handlePayNow}
-                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                        </svg>
-                        Pay with PYUSD ({paymentInfo.maxAmountRequired} PYUSD)
-                      </button>
-                      <p className="text-xs text-orange-600 mt-2">
-                        This will open your wallet to send {paymentInfo.maxAmountRequired} PYUSD to {paymentInfo.payTo}
-                      </p>
-                      <p className="text-xs text-orange-500 mt-1">
-                        Note: Make sure you have sufficient PYUSD balance in your wallet
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <button 
-                  onClick={clearError} 
-                  className="h-6 w-6 p-0 hover:bg-orange-200/20 rounded flex items-center justify-center"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Chat Messages Area */}
       <div className="flex-1 overflow-hidden">
@@ -299,8 +335,11 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
                 <h2 className="text-4xl font-bold text-[#004f4f] mb-6">
                   Welcome to VistAI
                 </h2>
-                <p className="text-[#004f4f]/70 text-xl leading-relaxed max-w-xl mx-auto">
+                <p className="text-[#004f4f]/70 text-xl leading-relaxed max-w-xl mx-auto mb-4">
                   Start a conversation with your AI companion. Ask questions, get help with code, or explore new ideas.
+                </p>
+                <p className="text-[#004f4f]/50 text-sm max-w-md mx-auto">
+                  💸 Auto-payment enabled • Responses might take a few secs to cook
                 </p>
               </div>
             </div>
@@ -433,7 +472,9 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
                           <div className="w-2 h-2 rounded-full animate-bounce bg-[#004f4f]" style={{ animationDelay: '-0.16s' }}></div>
                           <div className="w-2 h-2 rounded-full animate-bounce bg-[#004f4f]"></div>
                         </div>
-                        <span className="text-[#004f4f]/70 text-sm font-medium">AI is thinking...</span>
+                        <span className="text-[#004f4f]/70 text-sm font-medium">
+                          {paymentStatus || 'AI is cooking... 🧑‍🍳'}
+                        </span>
                       </div>
                     </div>
                   </div>

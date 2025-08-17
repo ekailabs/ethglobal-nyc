@@ -2,20 +2,31 @@ import { ethers } from 'ethers';
 
 // Get configuration from environment variables
 const BASE_SEPOLIA_RPC = process.env.BASE_SEPOLIA_RPC || 'https://sepolia.base.org';
-const EXPECTED_RECIPIENT = process.env.PAYMENT_RECIPIENT;
-const PAYMENT_AMOUNT = process.env.PAYMENT_AMOUNT || '50000';
-const TOKEN_DECIMALS = parseInt(process.env.PAYMENT_TOKEN_DECIMALS || '6');
-const PYUSD_CONTRACT = process.env.PAYMENT_TOKEN_ADDRESS;
 
-// Validate required environment variables
-if (!EXPECTED_RECIPIENT) {
-  throw new Error('PAYMENT_RECIPIENT environment variable is required');
-}
-if (!PYUSD_CONTRACT) {
-  throw new Error('PAYMENT_TOKEN_ADDRESS environment variable is required');
-}
+function getValidationConfig() {
+  const EXPECTED_RECIPIENT = process.env.PAYMENT_RECIPIENT;
+  const PAYMENT_AMOUNT = process.env.PAYMENT_AMOUNT || '50000';
+  const TOKEN_DECIMALS = parseInt(process.env.PAYMENT_TOKEN_DECIMALS || '6');
+  const PYUSD_CONTRACT = process.env.PAYMENT_TOKEN_ADDRESS;
 
-const EXPECTED_AMOUNT = ethers.parseUnits(PAYMENT_AMOUNT, TOKEN_DECIMALS);
+  // Validate required environment variables
+  if (!EXPECTED_RECIPIENT) {
+    throw new Error('PAYMENT_RECIPIENT environment variable is required');
+  }
+  if (!PYUSD_CONTRACT) {
+    throw new Error('PAYMENT_TOKEN_ADDRESS environment variable is required');
+  }
+
+  const EXPECTED_AMOUNT = ethers.parseUnits(PAYMENT_AMOUNT, TOKEN_DECIMALS);
+
+  return {
+    EXPECTED_RECIPIENT,
+    PAYMENT_AMOUNT,
+    TOKEN_DECIMALS,
+    PYUSD_CONTRACT,
+    EXPECTED_AMOUNT
+  };
+}
 
 export interface ValidationResult {
   isValid: boolean;
@@ -30,6 +41,10 @@ export interface ValidationResult {
 
 export async function validateTransaction(txHash: string): Promise<ValidationResult> {
   try {
+    // Get validation configuration
+    const config = getValidationConfig();
+    const { EXPECTED_RECIPIENT, TOKEN_DECIMALS, PYUSD_CONTRACT, EXPECTED_AMOUNT } = config;
+
     // Connect to Base Sepolia
     const provider = new ethers.JsonRpcProvider(BASE_SEPOLIA_RPC);
     

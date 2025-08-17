@@ -6,7 +6,7 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export async function openRouterProxy(req: Request, res: Response) {
   try {
-    const { tx_hash, messages, model, stream = true, ...otherParams } = req.body;
+    const { tx_hash, messages, model, stream = false, ...otherParams } = req.body;
 
     // Check if payment is required
     const paymentRequired = process.env.ENABLE_PAYMENT_REQUIRED === 'true';

@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useDynamicContext, useIsLoggedIn, useUserWallets } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext, useIsLoggedIn, useUserWallets, useSendBalance } from "@dynamic-labs/sdk-react-core";
 import { isEthereumWallet } from '@dynamic-labs/ethereum'
+import { parseUnits } from 'viem'
 
 
 import './Methods.css';
@@ -14,6 +15,7 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
 	const isLoggedIn = useIsLoggedIn();
 	const { sdkHasLoaded, primaryWallet, user } = useDynamicContext();
 	const userWallets = useUserWallets();
+	const { open: openSendBalance } = useSendBalance();
 	const [isLoading, setIsLoading] = useState(true);
 	const [result, setResult] = useState('');
 	const [error, setError] = useState<string | null>(null);
@@ -188,6 +190,58 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
     const data = await response.json();
     console.log('✅ Successfully created customer');
     return data;
+  }
+
+  async function sendPYUSD() {
+    try {
+      console.log('💰 Starting PYUSD send process');
+      
+      // Get recipient address from user
+      const recipientAddress = prompt('Enter recipient address:');
+      if (!recipientAddress) {
+        console.log('❌ No recipient address provided');
+        return;
+      }
+
+      // Get amount from user
+      const amountInput = prompt('Enter PYUSD amount to send:');
+      if (!amountInput) {
+        console.log('❌ No amount provided');
+        return;
+      }
+
+      const amount = parseFloat(amountInput);
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error('Invalid amount. Please enter a positive number.');
+      }
+
+      console.log('📤 Sending PYUSD:', { recipientAddress, amount });
+
+      // PYUSD is typically 6 decimals, but using parseUnits to be safe
+      const value = parseUnits(amountInput, 6);
+
+      // Open Dynamic's send balance modal with pre-populated fields
+      const tx = await openSendBalance({
+        recipientAddress,
+        value: value
+      });
+
+      console.log('✅ PYUSD send transaction:', tx);
+
+      const sendData = {
+        transaction: tx,
+        recipientAddress,
+        amount: amountInput,
+        action: 'Send PYUSD',
+        timestamp: new Date().toISOString()
+      };
+
+      setResult(safeStringify(sendData));
+      setError(null);
+    } catch (err) {
+      console.error('💥 Error sending PYUSD:', err);
+      setError(err instanceof Error ? err.message : 'Failed to send PYUSD');
+    }
   }
 
   async function addFiatToWallet() {
@@ -365,6 +419,7 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
 						<button className="btn btn-primary" onClick={showUser}>Fetch User</button>
 						<button className="btn btn-primary" onClick={showUserWallets}>Fetch User Wallets</button>
 						<button className="btn btn-primary" onClick={addFiatToWallet}>Add Fiat to Wallet</button>
+						<button className="btn btn-primary" onClick={sendPYUSD}>Send PYUSD</button>
 
 						{primaryWallet && isEthereumWallet(primaryWallet) && (
 		<>

@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { ChatService, ChatMessage as ApiChatMessage } from './chatService';
 
 export interface Message {
   id: string;
@@ -11,6 +12,8 @@ export interface ChatState {
   messages: Message[];
   isLoading: boolean;
   error: string | null;
+  selectedModel: string;
+  availableModels: string[];
 }
 
 export function useChat() {
@@ -18,7 +21,28 @@ export function useChat() {
     messages: [],
     isLoading: false,
     error: null,
+    selectedModel: 'openai/gpt-4o-mini',
+    availableModels: [],
   });
+
+  const [chatService] = useState(() => new ChatService());
+
+  // Load available models on mount
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const models = await chatService.getAvailableModels();
+        setChatState(prev => ({
+          ...prev,
+          availableModels: models,
+        }));
+      } catch (error) {
+        console.warn('Failed to load models:', error);
+      }
+    };
+
+    loadModels();
+  }, [chatService]);
 
   const sendMessage = useCallback(async (messageText: string) => {
     if (!messageText.trim()) return;
@@ -39,21 +63,23 @@ export function useChat() {
     }));
 
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-
-      // Mock AI responses
-      const responses = [
-        "Hello! I'm an AI assistant. How can I help you today?",
-        "That's an interesting question! Let me think about that...\n\nBased on what you've asked, I can provide some insights:\n\n1. **First point**: This is important because...\n2. **Second point**: Consider this aspect...\n3. **Third point**: Don't forget about...\n\nWould you like me to elaborate on any of these points?",
-        "I understand what you're looking for. Here's what I recommend:\n\n```javascript\nconst solution = {\n  approach: 'systematic',\n  steps: ['analyze', 'plan', 'implement', 'test'],\n  outcome: 'success'\n};\n```\n\nThis should help you get started!",
-        "Great question! Here are some key considerations:\n\n> \"The best way to predict the future is to invent it.\" - Alan Kay\n\n- **Technical aspects**: Focus on clean, maintainable code\n- **User experience**: Always prioritize the end user\n- **Performance**: Optimize for speed and efficiency\n\nLet me know if you need more specific guidance!",
-        "I can help you with that! Here's a comprehensive breakdown:\n\n## Overview\nThis is a complex topic that requires careful consideration.\n\n### Key Points:\n1. Start with the basics\n2. Build incrementally\n3. Test thoroughly\n4. Document your work\n\n### Example Implementation:\n```python\ndef solve_problem(input_data):\n    # Process the input\n    result = process(input_data)\n    \n    # Validate the result\n    if validate(result):\n        return result\n    else:\n        raise ValueError(\"Invalid result\")\n```\n\nDoes this help clarify things?",
+      // Prepare messages for the API
+      const apiMessages: ApiChatMessage[] = [
+        ...chatState.messages.map(msg => ({
+          role: msg.isUser ? 'user' as const : 'assistant' as const,
+          content: msg.text,
+        })),
+        { role: 'user', content: messageText },
       ];
+
+      const response = await chatService.sendChatMessage(
+        apiMessages,
+        chatState.selectedModel
+      );
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: responses[Math.floor(Math.random() * responses.length)],
+        text: response.choices[0]?.message?.content || 'No response received',
         isUser: false,
         timestamp: new Date(),
       };
@@ -72,7 +98,7 @@ export function useChat() {
         error: error instanceof Error ? error.message : 'Failed to send message',
       }));
     }
-  }, []);
+  }, [chatService, chatState.messages, chatState.selectedModel]);
 
   const clearMessages = useCallback(() => {
     setChatState(prev => ({
@@ -89,10 +115,18 @@ export function useChat() {
     }));
   }, []);
 
+  const setModel = useCallback((model: string) => {
+    setChatState(prev => ({
+      ...prev,
+      selectedModel: model,
+    }));
+  }, []);
+
   return {
     ...chatState,
     sendMessage,
     clearMessages,
     clearError,
+    setModel,
   };
 }

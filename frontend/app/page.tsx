@@ -1,10 +1,10 @@
 
 "use client";
 
-import { DynamicWidget } from "@/lib/dynamic";
-import DynamicMethods from "@/app/components/Methods";
-import ChatInterface from "@/app/components/ChatInterface";
-import { useDarkMode } from "@/lib/useDarkMode";
+import { DynamicWidget } from "../lib/dynamic";
+import DynamicMethods from "./components/Methods";
+import ChatInterface from "./components/ChatInterface";
+import { useDarkMode } from "../lib/useDarkMode";
 import "./page.css";
 
 export default function Main() {

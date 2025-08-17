@@ -11,7 +11,7 @@ export async function openRouterProxy(req: Request, res: Response) {
       console.error('OPENROUTER_API_KEY environment variable is required');
       return res.status(500).json({ error: 'OpenRouter API key not configured' });
     }
-    const { messages, model, stream = true, ...otherParams } = req.body;
+    const { messages, model, stream = false, ...otherParams } = req.body;
     console.log('🤖 Messages array here is', req.body);
     if (!messages || !Array.isArray(messages)) {
       console.log('🤖 Messages array here is', messages);

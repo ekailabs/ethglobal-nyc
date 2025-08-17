@@ -18,14 +18,26 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
-  const { messages, isLoading, error, sendMessage, clearMessages, clearError } = useChat();
+  const { 
+    messages, 
+    isLoading, 
+    error, 
+    sendMessage, 
+    clearMessages, 
+    clearError,
+    selectedModel,
+    availableModels,
+    setModel
+  } = useChat();
   const [inputMessage, setInputMessage] = useState('');
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
     
-    await sendMessage(inputMessage);
-    setInputMessage('');
+    const messageToSend = inputMessage;
+    setInputMessage(''); // Clear input immediately
+    
+    await sendMessage(messageToSend);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -51,14 +63,36 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
               <p className="text-sm text-[#004f4f]/60">AI Assistant</p>
             </div>
           </div>
-          {messages.length > 0 && (
-            <button
-              onClick={clearMessages}
-              className="px-3 py-2 text-sm text-[#004f4f]/60 hover:text-[#004f4f] hover:bg-[#004f4f]/5 rounded-lg transition-colors"
-            >
-              Clear Chat
-            </button>
-          )}
+          
+          <div className="flex items-center gap-4">
+            {/* Model Selector */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="model-select" className="text-sm text-[#004f4f]/60 font-medium">
+                Model:
+              </label>
+              <select
+                id="model-select"
+                value={selectedModel}
+                onChange={(e) => setModel(e.target.value)}
+                className="px-3 py-2 text-sm border border-[#004f4f]/20 rounded-lg bg-white text-[#004f4f] focus:outline-none focus:border-[#004f4f]/40"
+              >
+                {availableModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model.split('/').pop()}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {messages.length > 0 && (
+              <button
+                onClick={clearMessages}
+                className="px-3 py-2 text-sm text-[#004f4f]/60 hover:text-[#004f4f] hover:bg-[#004f4f]/5 rounded-lg transition-colors"
+              >
+                Clear Chat
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

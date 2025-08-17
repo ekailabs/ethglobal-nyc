@@ -24,8 +24,6 @@ export default function BillingDashboard({ isOpen, onClose }: BillingDashboardPr
 
   if (!isOpen) return null;
 
-  const maxHourlySpend = Math.max(...billingData.hourlySpending);
-
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden">
@@ -39,7 +37,7 @@ export default function BillingDashboard({ isOpen, onClose }: BillingDashboardPr
             </div>
             <div>
               <h2 className="text-2xl font-bold text-[#004f4f]">Billing Dashboard</h2>
-              <p className="text-sm text-[#004f4f]/60">Last 24 hours analytics</p>
+              <p className="text-sm text-[#004f4f]/60">Usage analytics</p>
             </div>
           </div>
           <button
@@ -58,7 +56,7 @@ export default function BillingDashboard({ isOpen, onClose }: BillingDashboardPr
             {/* Stats Cards */}
             <div className="bg-gradient-to-br from-[#004f4f] to-[#006666] rounded-xl p-6 text-white">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium opacity-90">Total Spent (24h)</h3>
+                <h3 className="text-sm font-medium opacity-90">Total Spent</h3>
                 <svg className="w-5 h-5 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                 </svg>
@@ -84,28 +82,80 @@ export default function BillingDashboard({ isOpen, onClose }: BillingDashboardPr
                 </svg>
               </div>
               <p className="text-3xl font-bold text-[#004f4f]">
-                ${(billingData.totalSpent24h / billingData.transactionCount).toFixed(3)}
+                ${(billingData.totalSpent24h / billingData.transactionCount).toFixed(2)}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Hourly Spending Chart */}
+            {/* Cost per Model Pie Chart */}
             <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-[#004f4f] mb-4">Hourly Spending</h3>
-              <div className="h-40 flex items-end justify-between gap-2">
-                {billingData.hourlySpending.map((amount, index) => (
-                  <div key={index} className="flex flex-col items-center flex-1">
-                    <div 
-                      className="bg-gradient-to-t from-[#004f4f] to-[#006666] rounded-t-sm w-full transition-all duration-300"
-                      style={{ 
-                        height: `${maxHourlySpend > 0 ? (amount / maxHourlySpend) * 120 : 0}px`,
-                        minHeight: amount > 0 ? '4px' : '0px'
-                      }}
-                    />
-                    <span className="text-xs text-gray-500 mt-2">{24 - billingData.hourlySpending.length + index}h</span>
+              <h3 className="text-lg font-semibold text-[#004f4f] mb-4">Cost per Model</h3>
+              <div className="flex items-center justify-center h-40">
+                {Object.keys(billingData.modelCosts).length > 0 ? (
+                  <div className="relative w-32 h-32">
+                    <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 128 128">
+                      {(() => {
+                        const totalCost = Object.values(billingData.modelCosts).reduce((sum, cost) => sum + cost, 0);
+                        let currentAngle = 0;
+                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                        
+                        return Object.entries(billingData.modelCosts).map(([model, cost], index) => {
+                          const percentage = cost / totalCost;
+                          const circumference = 2 * Math.PI * 50;
+                          const strokeDasharray = `${percentage * circumference} ${circumference}`;
+                          const strokeDashoffset = -currentAngle * circumference / 360;
+                          
+                          const segment = (
+                            <circle
+                              key={model}
+                              cx="64"
+                              cy="64"
+                              r="50"
+                              fill="none"
+                              stroke={colors[index % colors.length]}
+                              strokeWidth="20"
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                              className="transition-all duration-300"
+                            />
+                          );
+                          
+                          currentAngle += percentage * 360;
+                          return segment;
+                        });
+                      })()}
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-[#004f4f]">${billingData.totalSpent24h.toFixed(2)}</div>
+                        <div className="text-xs text-gray-500">Total</div>
+                      </div>
+                    </div>
                   </div>
-                ))}
+                ) : (
+                  <div className="text-gray-400 text-center">
+                    <div className="text-sm">No data available</div>
+                  </div>
+                )}
+              </div>
+              {/* Legend */}
+              <div className="mt-4 space-y-2">
+                {Object.entries(billingData.modelCosts).map(([model, cost], index) => {
+                  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                  return (
+                    <div key={model} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: colors[index % colors.length] }}
+                        />
+                        <span className="text-sm text-gray-700">{model.split('/').pop()}</span>
+                      </div>
+                      <span className="text-sm font-semibold text-[#004f4f]">${cost.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -154,7 +204,7 @@ export default function BillingDashboard({ isOpen, onClose }: BillingDashboardPr
                         {tx.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="py-3 text-sm text-gray-700">{tx.model.split('/').pop()}</td>
-                      <td className="py-3 text-sm font-semibold text-[#004f4f]">${tx.amount.toFixed(3)} PYUSD</td>
+                      <td className="py-3 text-sm font-semibold text-[#004f4f]">${tx.amount.toFixed(2)} PYUSD</td>
                       <td className="py-3 text-sm">
                         {tx.txHash ? (
                           <a 

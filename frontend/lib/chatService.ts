@@ -66,7 +66,7 @@ export class ChatService {
         max_tokens: options.max_tokens || 4000,
         temperature: options.temperature || 0.7,
         top_p: options.top_p || 0.9,
-        stream: options.stream || false,
+        stream: false,
         ...(txHash && { tx_hash: txHash }),
         ...options,
       }),

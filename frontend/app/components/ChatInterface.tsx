@@ -101,8 +101,6 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
       // Track the transaction
       addTransaction(parseFloat(paymentInfo.maxAmountRequired), selectedModel, receipt.transactionHash);
       
-      // Show Sepolia scan link
-      alert(`Payment confirmed! View on Sepolia: https://sepolia.etherscan.io/tx/${receipt.transactionHash}`);
       
       return receipt.transactionHash;
     } else {
@@ -137,8 +135,6 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
       
       addTransaction(parseFloat(paymentInfo.maxAmountRequired), selectedModel, hash);
       
-      // Show Sepolia scan link
-      alert(`Payment confirmed! View on Sepolia: https://sepolia.etherscan.io/tx/${hash}`);
       
       return hash;
     }
@@ -236,7 +232,6 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
 
       console.log('✅ PYUSD send transaction:', tx);
 
-      alert(`PYUSD sent successfully! Transaction: ${tx}`);
       
     } catch (err) {
       console.error('💥 Error sending PYUSD:', err);
@@ -273,7 +268,7 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
             </div>
             <div>
               <h1 className="text-xl font-semibold text-[#004f4f]">VistAI</h1>
-              <p className="text-sm text-[#004f4f]/60">AI Assistant</p>
+              <p className="text-sm text-[#004f4f]/60">AI Assistant • May take a few secs</p>
             </div>
           </div>
           
@@ -339,7 +334,7 @@ export default function ChatInterface({ isDarkMode }: ChatInterfaceProps) {
                   Start a conversation with your AI companion. Ask questions, get help with code, or explore new ideas.
                 </p>
                 <p className="text-[#004f4f]/50 text-sm max-w-md mx-auto">
-                  💸 Auto-payment enabled • Responses might take a few secs to cook
+                  💸 Auto-payment enabled
                 </p>
               </div>
             </div>

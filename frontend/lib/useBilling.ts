@@ -12,6 +12,7 @@ export interface BillingData {
   totalSpent24h: number;
   transactionCount: number;
   modelUsage: { [key: string]: number };
+  modelCosts: { [key: string]: number };
   hourlySpending: number[];
   recentTransactions: Transaction[];
 }
@@ -23,6 +24,7 @@ export function useBilling() {
     totalSpent24h: 0,
     transactionCount: 0,
     modelUsage: {},
+    modelCosts: {},
     hourlySpending: new Array(24).fill(0),
     recentTransactions: []
   });
@@ -85,10 +87,12 @@ export function useBilling() {
       const totalSpent24h = recent24h.reduce((sum, tx) => sum + tx.amount, 0);
       const transactionCount = recent24h.length;
       
-      // Calculate model usage
+      // Calculate model usage and costs
       const modelUsage: { [key: string]: number } = {};
+      const modelCosts: { [key: string]: number } = {};
       recent24h.forEach(tx => {
         modelUsage[tx.model] = (modelUsage[tx.model] || 0) + 1;
+        modelCosts[tx.model] = (modelCosts[tx.model] || 0) + tx.amount;
       });
       
       // Calculate hourly spending
@@ -104,6 +108,7 @@ export function useBilling() {
         totalSpent24h,
         transactionCount,
         modelUsage,
+        modelCosts,
         hourlySpending,
         recentTransactions: recent24h.slice(0, 50) // Keep last 50 transactions
       };
@@ -126,8 +131,10 @@ export function useBilling() {
       const transactionCount = recent24h.length;
       
       const modelUsage: { [key: string]: number } = {};
+      const modelCosts: { [key: string]: number } = {};
       recent24h.forEach(tx => {
         modelUsage[tx.model] = (modelUsage[tx.model] || 0) + 1;
+        modelCosts[tx.model] = (modelCosts[tx.model] || 0) + tx.amount;
       });
       
       const hourlySpending = new Array(24).fill(0);
@@ -142,6 +149,7 @@ export function useBilling() {
         totalSpent24h,
         transactionCount,
         modelUsage,
+        modelCosts,
         hourlySpending,
         recentTransactions: recent24h
       };

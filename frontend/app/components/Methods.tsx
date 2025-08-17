@@ -1,8 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useDynamicContext, useIsLoggedIn, useUserWallets, useSendBalance } from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext, useIsLoggedIn, useUserWallets } from "@dynamic-labs/sdk-react-core";
 import { isEthereumWallet } from '@dynamic-labs/ethereum'
-import { parseEther, parseUnits } from 'viem'
 
 import './Methods.css';
 
@@ -14,7 +13,6 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
 	const isLoggedIn = useIsLoggedIn();
 	const { sdkHasLoaded, primaryWallet, user } = useDynamicContext();
 	const userWallets = useUserWallets();
-	const { open: openSendBalance } = useSendBalance();
 	const [isLoading, setIsLoading] = useState(true);
 	const [result, setResult] = useState('');
 	const [error, setError] = useState<string | null>(null);
@@ -152,20 +150,6 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
     return data;
   }
 
-  async function sendPYUSD() {
-    try {
-      console.log('💰 Opening basic send balance modal');
-      
-      // Use the basic version - just open the modal
-      const tx = await openSendBalance({recipientAddress: '0x0000000000000000000000000000000000000000', value: parseEther('1')});
-      
-      console.log('✅ Send balance modal opened:', tx);
-      
-    } catch (err) {
-      console.error('💥 Error opening send balance modal:', err);
-      setError(err instanceof Error ? err.message : 'Failed to open send balance modal');
-    }
-  }
 
   async function addFiatToWallet() {
     try {
@@ -355,9 +339,6 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
 						<div className="action-buttons">
 							<button className="btn btn-primary btn-large" onClick={addFiatToWallet}>
 								Add Fiat to Wallet
-							</button>
-							<button className="btn btn-primary btn-large" onClick={sendPYUSD}>
-								Send PYUSD
 							</button>
 						</div>
 

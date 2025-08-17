@@ -4,7 +4,6 @@ import { useDynamicContext, useIsLoggedIn, useUserWallets, useSendBalance } from
 import { isEthereumWallet } from '@dynamic-labs/ethereum'
 import { parseUnits } from 'viem'
 
-
 import './Methods.css';
 
 interface DynamicMethodsProps {
@@ -70,45 +69,6 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
 		}
 	}
 
-	
-  async function fetchEthereumPublicClient() {
-    if (!primaryWallet || !isEthereumWallet(primaryWallet)) return;
-    try {
-      setIsLoading(true);
-      const result = await primaryWallet.getPublicClient();
-      setResult(safeStringify(result));
-    } catch (error) {
-      setResult(safeStringify({ error: error instanceof Error ? error.message : 'Unknown error occurred' }));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function fetchEthereumWalletClient() {
-    if (!primaryWallet || !isEthereumWallet(primaryWallet)) return;
-    try {
-      setIsLoading(true);
-      const result = await primaryWallet.getWalletClient();
-      setResult(safeStringify(result));
-    } catch (error) {
-      setResult(safeStringify({ error: error instanceof Error ? error.message : 'Unknown error occurred' }));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function fetchEthereumMessage() {
-    if (!primaryWallet || !isEthereumWallet(primaryWallet)) return;
-    try {
-      setIsLoading(true);
-      const result = await primaryWallet.signMessage("Hello World");
-      setResult(safeStringify(result));
-    } catch (error) {
-      setResult(safeStringify({ error: error instanceof Error ? error.message : 'Unknown error occurred' }));
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   async function fetchFernCustomers() {
     console.log('🌐 Fetching customers from Fern API...');
@@ -416,25 +376,30 @@ export default function DynamicMethods({ isDarkMode }: DynamicMethodsProps) {
 			{!isLoading && (
 				<div className="dynamic-methods" data-theme={isDarkMode ? 'dark' : 'light'}>
 					<div className="methods-container">
-						<button className="btn btn-primary" onClick={showUser}>Fetch User</button>
-						<button className="btn btn-primary" onClick={showUserWallets}>Fetch User Wallets</button>
-						<button className="btn btn-primary" onClick={addFiatToWallet}>Add Fiat to Wallet</button>
-						<button className="btn btn-primary" onClick={sendPYUSD}>Send PYUSD</button>
+						<div className="wallet-info">
+							<div className="network-info">
+								<span className="network-badge">
+									<span className="network-icon">S</span>
+									Sepolia
+								</span>
+								<span className="wallet-address">
+									<span className="wallet-icon">👛</span>
+									{primaryWallet?.address ? `${primaryWallet.address.slice(0, 6)}...${primaryWallet.address.slice(-4)}` : 'No wallet'}
+								</span>
+							</div>
+						</div>
+						
+						<div className="action-buttons">
+							<button className="btn btn-primary btn-large" onClick={addFiatToWallet}>
+								Add Fiat to Wallet
+							</button>
+							<button className="btn btn-primary btn-large" onClick={sendPYUSD}>
+								Send PYUSD
+							</button>
+						</div>
 
 						{primaryWallet && isEthereumWallet(primaryWallet) && (
 		<>
-			
-      <button type="button" className="btn btn-primary" onClick={fetchEthereumPublicClient}>
-        Fetch PublicClient
-      </button>
-
-      <button type="button" className="btn btn-primary" onClick={fetchEthereumWalletClient}>
-        Fetch WalletClient
-      </button>
-
-      <button type="button" className="btn btn-primary" onClick={fetchEthereumMessage}>
-        Fetch Message
-      </button>
 		</>
 	)}
 					</div>

@@ -7,7 +7,7 @@
   justify-content: center;
   overflow: hidden;
   transition: all 0.3s;
-  background: transparent;
+  background: #FFFCEC;
   color: #333;
 }
 
@@ -69,9 +69,6 @@
 .main-content {
     position: relative;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     width: 100%;
     height: 100vh;
     box-sizing: border-box;
@@ -80,40 +77,47 @@
 
 @media (min-width: 1024px) {
     .main-content {
-        padding: 0;
+        flex-direction: row;
     }
 }
 
 @media (max-width: 1023px) {
     .main-content {
+        flex-direction: column;
         padding: 15px;
+        gap: 15px;
     }
 }
 
 .wallet-section {
     position: absolute;
     top: 20px;
-    right: 20px;
+    left: 20px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 16px;
+    align-items: stretch;
+    gap: 20px;
     z-index: 10;
-    padding: 16px;
-    background: rgba(255, 252, 236, 0.8);
+    padding: 20px;
+    background: rgba(255, 252, 236, 0.95);
     backdrop-filter: blur(20px);
-    border-radius: 20px;
+    border-radius: 24px;
     border: 2px solid #004f4f20;
-    box-shadow: 0 8px 32px rgba(0, 79, 79, 0.1);
+    box-shadow: 0 12px 40px rgba(0, 79, 79, 0.08);
+    overflow: hidden;
+    max-width: 380px;
+    height: fit-content;
 }
 
 @media (max-width: 1023px) {
     .wallet-section {
         position: relative;
         top: auto;
-        right: auto;
+        left: auto;
         order: 1;
         margin-bottom: 20px;
+        width: 100%;
+        max-width: 400px;
     }
 }
 
@@ -125,6 +129,15 @@
     height: 100vh;
     padding: 0;
     box-sizing: border-box;
+    margin-left: 400px;
+}
+
+@media (max-width: 1023px) {
+    .chat-section {
+        margin-left: 0;
+        flex: 1;
+        min-height: 0;
+    }
 }
 
 .footer-image {

@@ -1,17 +1,18 @@
 
 .container {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f1f1f3;
+  overflow: hidden;
+  transition: all 0.3s;
+  background: transparent;
   color: #333;
-  transition: background-color 0.3s, color 0.3s;
 }
 
 .container.dark {
-  background: #0c0e14;
+  background: transparent;
   color: #fff;
 }
 
@@ -65,12 +66,65 @@
   color: #fff;
 }
 
-.modal {
+.main-content {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 20px;
+    width: 100%;
+    height: 100vh;
+    box-sizing: border-box;
+    max-width: none;
+}
+
+@media (min-width: 1024px) {
+    .main-content {
+        padding: 0;
+    }
+}
+
+@media (max-width: 1023px) {
+    .main-content {
+        padding: 15px;
+    }
+}
+
+.wallet-section {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    z-index: 10;
+    padding: 16px;
+    background: rgba(255, 252, 236, 0.8);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    border: 2px solid #004f4f20;
+    box-shadow: 0 8px 32px rgba(0, 79, 79, 0.1);
+}
+
+@media (max-width: 1023px) {
+    .wallet-section {
+        position: relative;
+        top: auto;
+        right: auto;
+        order: 1;
+        margin-bottom: 20px;
+    }
+}
+
+.chat-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100vh;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .footer-image {
